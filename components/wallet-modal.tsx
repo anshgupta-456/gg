@@ -29,21 +29,53 @@ export function WalletModal({ open, onOpenChange, onBalanceUpdate }: WalletModal
 
   const fetchBalance = async () => {
     try {
-      const token = localStorage.getItem("token")
+      let token: string | null = localStorage.getItem("token")
       if (!token) {
-        toast({
-          title: "Error",
-          description: "Please login to view wallet",
-          variant: "destructive"
-        })
+        console.log("No token found, attempting auto-login...")
+        // Try to get token by attempting login
+        try {
+          const loginRes = await fetch(`${API_URL}/api/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: "ProShooter99", password: "password123" }),
+          })
+          if (loginRes.ok) {
+            const loginData = await loginRes.json()
+            token = loginData.token || null
+            if (token) {
+              localStorage.setItem("token", token)
+              console.log("Auto-login successful for wallet operation")
+            } else {
+              console.error("No token received from login")
+              return
+            }
+          } else {
+            console.error("Auto-login failed for wallet")
+            return
+          }
+        } catch (error) {
+          console.error("Auto-login error:", error)
+          return
+        }
+      }
+      
+      if (!token) {
+        console.error("No token available")
         return
       }
+      
+      console.log("Fetching wallet balance with token:", token.substring(0, 20) + "...")
 
+      console.log("Calling wallet API:", `${API_URL}/api/wallet`)
       const response = await fetch(`${API_URL}/api/wallet`, {
+        method: "GET",
         headers: {
-          Authorization: `Bearer ${token}`,
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
       })
+      
+      console.log("Wallet API response status:", response.status)
 
       if (response.ok) {
         const data = await response.json()
@@ -101,11 +133,52 @@ export function WalletModal({ open, onOpenChange, onBalanceUpdate }: WalletModal
     setProcessingPayment(true)
     
     try {
-      const token = localStorage.getItem("token")
+      let token: string | null = localStorage.getItem("token")
+      if (!token) {
+        console.log("No token for payment, attempting auto-login...")
+        // Try auto-login
+        try {
+          const loginRes = await fetch(`${API_URL}/api/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: "ProShooter99", password: "password123" }),
+          })
+              if (loginRes.ok) {
+            const loginData = await loginRes.json()
+            token = loginData.token || null
+            if (token) {
+              localStorage.setItem("token", token)
+              console.log("Auto-login successful for payment, token stored")
+            } else {
+              throw new Error("No token received from login")
+            }
+          } else {
+            const errorText = await loginRes.text()
+            let errorData
+            try {
+              errorData = JSON.parse(errorText)
+            } catch {
+              errorData = { message: errorText || "Login failed" }
+            }
+            throw new Error(errorData.message || `Login failed with status ${loginRes.status}`)
+          }
+        } catch (error: any) {
+          toast({
+            title: "Authentication Error",
+            description: `Cannot connect to backend at ${API_URL}. Error: ${error.message || 'Unknown error'}. Please ensure backend is running.`,
+            variant: "destructive"
+          })
+          setLoading(false)
+          setProcessingPayment(false)
+          setShowPaymentMethod(false)
+          return
+        }
+      }
+      
       if (!token) {
         toast({
-          title: "Error",
-          description: "Please login to add money",
+          title: "Authentication Error",
+          description: "No authentication token available",
           variant: "destructive"
         })
         setLoading(false)

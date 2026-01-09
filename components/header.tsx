@@ -1,12 +1,14 @@
 "use client"
 
-import { Search, MessageCircle, Bell, User, Menu, Settings, Wallet } from "lucide-react"
+import { Search, MessageCircle, Bell, User, Menu, Settings, Wallet, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import { useState, useEffect } from "react"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { WalletModal } from "@/components/wallet-modal"
+import { useAuth } from "@/components/auth-provider"
+import { useRouter } from "next/navigation"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
@@ -15,6 +17,8 @@ export function Header() {
   const [walletOpen, setWalletOpen] = useState(false)
   const [walletBalance, setWalletBalance] = useState<number>(0)
   const isMobile = useIsMobile()
+  const { user, logout } = useAuth()
+  const router = useRouter()
 
   const fetchWalletBalance = async () => {
     try {
@@ -37,11 +41,18 @@ export function Header() {
   }
 
   useEffect(() => {
-    fetchWalletBalance()
+    // Wait a bit for auto-login to complete
+    const timer = setTimeout(() => {
+      fetchWalletBalance()
+    }, 1000)
+    
     // Refresh balance every 30 seconds
     const interval = setInterval(fetchWalletBalance, 30000)
-    return () => clearInterval(interval)
-  }, [])
+    return () => {
+      clearTimeout(timer)
+      clearInterval(interval)
+    }
+  }, [user])
 
   // Refresh balance when wallet modal closes
   const handleWalletClose = (open: boolean) => {
@@ -139,6 +150,18 @@ export function Header() {
           </Button>
           <Button asChild variant="ghost" size="icon" className="text-gray-400 hover:text-white">
             <a href="/settings"><Settings className="w-5 h-5" /></a>
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="text-gray-400 hover:text-white"
+            onClick={() => {
+              logout()
+              router.push("/login")
+            }}
+            title="Logout"
+          >
+            <LogOut className="w-5 h-5" />
           </Button>
         </div>
       </div>
