@@ -104,7 +104,7 @@ export function NewFeed() {
     return list
   }, [recSort])
 
-  const goToVideos = () => router.push("/videos")
+  const goToVideos = () => router.push("/trending")
 
   return (
     <div className="p-4 lg:p-6 space-y-6 lg:space-y-8">

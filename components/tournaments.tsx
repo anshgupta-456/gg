@@ -19,49 +19,26 @@ import {
   Award,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
-const upcomingTournaments = [
-  {
-    id: 1,
-    name: "Winter Championship 2024",
-    game: "League of Legends",
-    prizePool: "$50,000",
-    participants: "128/128",
-    startDate: "2024-01-20",
-    endDate: "2024-01-22",
-    status: "Registration Closed",
-    organizer: "ESL Gaming",
-    format: "Single Elimination",
-    thumbnail: "/news_feed/leagueoflegends.jpg",
-  },
-  {
-    id: 2,
-    name: "FPS Masters Cup",
-    game: "Call of Duty",
-    prizePool: "$25,000",
-    participants: "64/128",
-    startDate: "2024-01-25",
-    endDate: "2024-01-27",
-    status: "Open Registration",
-    organizer: "GameBattles",
-    format: "Double Elimination",
-    thumbnail: "/news_feed/callofduty.jpg",
-  },
-  {
-    id: 3,
-    name: "Valorant Pro Series",
-    game: "Valorant",
-    prizePool: "$75,000",
-    participants: "32/64",
-    startDate: "2024-02-01",
-    endDate: "2024-02-03",
-    status: "Open Registration",
-    organizer: "Riot Games",
-    format: "Swiss System",
-    thumbnail: "/news_feed/fortnite.webp",
-  },
-]
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+
+interface Tournament {
+  id: number
+  name: string
+  game: string
+  prizePool: string
+  entryFee: number
+  participants: string
+  startDate: string
+  endDate?: string
+  status: string
+  organizer: string
+  format: string
+  thumbnail?: string
+}
+
+// Sample tournaments - will be replaced by API data
 
 const myTournaments = [
   {
@@ -140,9 +117,204 @@ const recentResults = [
   },
 ]
 
+interface MyTournament {
+  id: number
+  registration_id?: number
+  name: string
+  game: string
+  status: string
+  placement?: string | null
+  earnings?: string | null
+  nextMatch?: string | null
+  thumbnail?: string
+  prize_pool?: string
+  start_date?: string
+  end_date?: string
+}
+
 export function Tournaments() {
   const { toast } = useToast()
-  const [registeredTournaments, setRegisteredTournaments] = useState<number[]>(myTournaments.map(t => t.id))
+  const [registeredTournaments, setRegisteredTournaments] = useState<number[]>([])
+  const [upcomingTournaments, setUpcomingTournaments] = useState<Tournament[]>([])
+  const [myTournamentsList, setMyTournamentsList] = useState<MyTournament[]>([])
+  const [loading, setLoading] = useState(true)
+  const [walletBalance, setWalletBalance] = useState<number>(0)
+
+  useEffect(() => {
+    fetchTournaments()
+    fetchWalletBalance()
+    fetchMyTournaments()
+  }, [])
+
+  const fetchTournaments = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch(`${API_URL}/api/tournaments`)
+      if (response.ok) {
+        const data = await response.json()
+        setUpcomingTournaments(data.tournaments || [])
+      } else {
+        // Fallback to sample data if API fails
+        setUpcomingTournaments([
+          {
+            id: 1,
+            name: "Winter Championship 2024",
+            game: "League of Legends",
+            prizePool: "$50,000",
+            entryFee: 10.0,
+            participants: "128/128",
+            startDate: "2024-01-20",
+            endDate: "2024-01-22",
+            status: "Registration Closed",
+            organizer: "ESL Gaming",
+            format: "Single Elimination",
+            thumbnail: "/news_feed/leagueoflegends.jpg",
+          },
+          {
+            id: 2,
+            name: "FPS Masters Cup",
+            game: "Call of Duty",
+            prizePool: "$25,000",
+            entryFee: 5.0,
+            participants: "64/128",
+            startDate: "2024-01-25",
+            endDate: "2024-01-27",
+            status: "Open Registration",
+            organizer: "GameBattles",
+            format: "Double Elimination",
+            thumbnail: "/news_feed/callofduty.jpg",
+          },
+          {
+            id: 3,
+            name: "Valorant Pro Series",
+            game: "Valorant",
+            prizePool: "$75,000",
+            entryFee: 15.0,
+            participants: "32/64",
+            startDate: "2024-02-01",
+            endDate: "2024-02-03",
+            status: "Open Registration",
+            organizer: "Riot Games",
+            format: "Swiss System",
+            thumbnail: "/news_feed/fortnite.webp",
+          },
+        ])
+      }
+    } catch (error) {
+      console.error("Error fetching tournaments:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchWalletBalance = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      if (!token) return
+
+      const response = await fetch(`${API_URL}/api/wallet`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setWalletBalance(data.balance || 0)
+      }
+    } catch (error) {
+      console.error("Error fetching wallet balance:", error)
+    }
+  }
+
+  const fetchMyTournaments = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      if (!token) {
+        setMyTournamentsList([])
+        return
+      }
+
+      const response = await fetch(`${API_URL}/api/tournaments/my-tournaments`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setMyTournamentsList(data.tournaments || [])
+        // Update registered tournaments list
+        const regIds = (data.tournaments || []).map((t: MyTournament) => t.id)
+        setRegisteredTournaments(regIds)
+      } else {
+        setMyTournamentsList([])
+      }
+    } catch (error) {
+      console.error("Error fetching my tournaments:", error)
+      setMyTournamentsList([])
+    }
+  }
+
+  const handleRegister = async (tournament: Tournament) => {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      toast({
+        title: "Login Required",
+        description: "Please login to register for tournaments",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (walletBalance < tournament.entryFee) {
+      toast({
+        title: "Insufficient Balance",
+        description: `You need $${tournament.entryFee.toFixed(2)} to register. Current balance: $${walletBalance.toFixed(2)}`,
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/api/tournaments/${tournament.id}/register`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setRegisteredTournaments((prev) => [...prev, tournament.id])
+        setWalletBalance(data.balance || walletBalance)
+        toast({
+          title: "Registered Successfully!",
+          description: `You've been registered for ${tournament.name}. Entry fee of $${tournament.entryFee.toFixed(2)} deducted from wallet.`,
+        })
+        // Refresh tournaments to update participant count
+        fetchTournaments()
+        // Refresh my tournaments to show newly registered tournament
+        fetchMyTournaments()
+        // Refresh wallet balance
+        fetchWalletBalance()
+      } else {
+        const error = await response.json()
+        toast({
+          title: "Registration Failed",
+          description: error.message || "Failed to register for tournament",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to register for tournament. Please try again.",
+        variant: "destructive"
+      })
+    }
+  }
   return (
     <div className="p-6 space-y-8">
       {/* Header */}
@@ -196,8 +368,11 @@ export function Tournaments() {
           </div>
 
           {/* Tournament Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {upcomingTournaments.map((tournament) => (
+          {loading ? (
+            <div className="text-center text-gray-400 py-8">Loading tournaments...</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {upcomingTournaments.map((tournament) => (
               <Card key={tournament.id} className="bg-gray-800 border-gray-700 overflow-hidden">
                 <div className="relative">
                   <img
@@ -247,17 +422,21 @@ export function Tournaments() {
                     Organized by <span className="text-purple-400">{tournament.organizer}</span>
                   </div>
 
+                  {tournament.entryFee > 0 && (
+                    <div className="flex items-center space-x-1 text-sm text-yellow-400">
+                      <DollarSign className="w-4 h-4" />
+                      <span>Entry Fee: ${tournament.entryFee.toFixed(2)}</span>
+                    </div>
+                  )}
+
                   <div className="flex space-x-2">
                     <Button
                       size="sm"
                       className="bg-purple-600 hover:bg-purple-700 flex-1"
                       disabled={registeredTournaments.includes(tournament.id) || tournament.status !== 'Open Registration'}
-                      onClick={() => {
-                        setRegisteredTournaments((prev) => [...prev, tournament.id])
-                        toast({ title: "Registered!", description: `You registered for ${tournament.name}.` })
-                      }}
+                      onClick={() => handleRegister(tournament)}
                     >
-                      {tournament.status === "Registration Closed" ? "Full" : "Register"}
+                      {tournament.status === "Registration Closed" ? "Full" : registeredTournaments.includes(tournament.id) ? "Registered" : `Register ($${tournament.entryFee.toFixed(2)})`}
                     </Button>
                     <Button size="sm" variant="outline" className="border-gray-600 text-gray-300 flex-1" onClick={() => toast({ title: "Tournament Details", description: `Viewing details for ${tournament.name}.` })}>
                       Details
@@ -265,13 +444,21 @@ export function Tournaments() {
                   </div>
                 </div>
               </Card>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="my-tournaments" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {myTournaments.map((tournament) => (
+          {myTournamentsList.length === 0 ? (
+            <div className="text-center py-12">
+              <Trophy className="w-16 h-16 mx-auto text-gray-600 mb-4" />
+              <h3 className="text-xl font-semibold text-gray-400 mb-2">No Tournaments Yet</h3>
+              <p className="text-gray-500">Register for tournaments to see them here</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {myTournamentsList.map((tournament) => (
               <Card key={tournament.id} className="bg-gray-800 border-gray-700 overflow-hidden">
                 <div className="relative">
                   <img
@@ -303,11 +490,25 @@ export function Tournaments() {
                 <div className="p-4 space-y-3">
                   <h3 className="font-semibold text-white">{tournament.name}</h3>
                   <p className="text-gray-400 text-sm">{tournament.game}</p>
+                  
+                  {tournament.prize_pool && (
+                    <div className="flex items-center space-x-1 text-purple-400 text-sm">
+                      <Trophy className="w-4 h-4" />
+                      <span>{tournament.prize_pool}</span>
+                    </div>
+                  )}
 
                   {tournament.earnings && (
                     <div className="flex items-center space-x-1 text-green-400">
                       <DollarSign className="w-4 h-4" />
                       <span className="font-medium">{tournament.earnings}</span>
+                    </div>
+                  )}
+
+                  {tournament.placement && (
+                    <div className="flex items-center space-x-1 text-yellow-400">
+                      <Medal className="w-4 h-4" />
+                      <span className="text-sm font-medium">{tournament.placement}</span>
                     </div>
                   )}
 
@@ -319,12 +520,13 @@ export function Tournaments() {
                   )}
 
                   <Button size="sm" className="w-full bg-purple-600 hover:bg-purple-700">
-                    {tournament.status === "Registered" ? "View Bracket" : "View Results"}
+                    {tournament.status === "Registered" ? "View Bracket" : tournament.status === "Completed" ? "View Results" : "View Details"}
                   </Button>
                 </div>
               </Card>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="leaderboards" className="space-y-6">

@@ -1,15 +1,55 @@
 "use client"
 
-import { Search, MessageCircle, Bell, User, Menu, Settings } from "lucide-react"
+import { Search, MessageCircle, Bell, User, Menu, Settings, Wallet } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { WalletModal } from "@/components/wallet-modal"
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
 export function Header() {
   const [showSearch, setShowSearch] = useState(false)
+  const [walletOpen, setWalletOpen] = useState(false)
+  const [walletBalance, setWalletBalance] = useState<number>(0)
   const isMobile = useIsMobile()
+
+  const fetchWalletBalance = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      if (!token) return
+
+      const response = await fetch(`${API_URL}/api/wallet`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setWalletBalance(data.balance)
+      }
+    } catch (error) {
+      console.error("Error fetching wallet balance:", error)
+    }
+  }
+
+  useEffect(() => {
+    fetchWalletBalance()
+    // Refresh balance every 30 seconds
+    const interval = setInterval(fetchWalletBalance, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Refresh balance when wallet modal closes
+  const handleWalletClose = (open: boolean) => {
+    setWalletOpen(open)
+    if (!open) {
+      fetchWalletBalance()
+    }
+  }
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-gray-800 border-b border-gray-700 px-4 lg:px-6 py-3">
@@ -61,6 +101,17 @@ export function Header() {
             </Button>
           )}
 
+          {/* Wallet Button */}
+          <Button 
+            variant="ghost" 
+            size="sm"
+            className="text-gray-300 hover:text-white hover:bg-gray-700 flex items-center space-x-2"
+            onClick={() => setWalletOpen(true)}
+          >
+            <Wallet className="w-5 h-5" />
+            <span className="hidden sm:inline font-medium">${walletBalance.toFixed(2)}</span>
+          </Button>
+
           <Button asChild variant="ghost" size="icon" className="text-gray-400 hover:text-white">
             <a href="/chat"><MessageCircle className="w-5 h-5" /></a>
           </Button>
@@ -78,6 +129,11 @@ export function Header() {
           </Button>
         </div>
       </div>
+      <WalletModal 
+        open={walletOpen} 
+        onOpenChange={handleWalletClose}
+        onBalanceUpdate={setWalletBalance}
+      />
     </header>
   )
 }
