@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Wallet, Plus, Minus, DollarSign, CreditCard, Smartphone } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useWallet } from "@/components/wallet-context"
 
 interface WalletModalProps {
   open: boolean
@@ -17,7 +18,7 @@ interface WalletModalProps {
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
 export function WalletModal({ open, onOpenChange, onBalanceUpdate }: WalletModalProps) {
-  const [balance, setBalance] = useState<number>(0)
+  const { balance, updateBalance, refreshBalance } = useWallet()
   const [loading, setLoading] = useState(false)
   const [addAmount, setAddAmount] = useState("")
   const [withdrawAmount, setWithdrawAmount] = useState("")
@@ -81,7 +82,7 @@ export function WalletModal({ open, onOpenChange, onBalanceUpdate }: WalletModal
         const data = await response.json()
         const balanceValue = typeof data.balance === 'number' ? data.balance : (parseFloat(data.balance) || 0)
         console.log("Fetched balance from server:", balanceValue)
-        setBalance(balanceValue)
+        updateBalance(balanceValue)
         // Also update parent component if callback exists
         if (onBalanceUpdate) {
           onBalanceUpdate(balanceValue)
@@ -105,8 +106,10 @@ export function WalletModal({ open, onOpenChange, onBalanceUpdate }: WalletModal
   useEffect(() => {
     if (open) {
       fetchBalance()
+      // Sync with context balance
+      refreshBalance()
     }
-  }, [open])
+  }, [open, refreshBalance])
 
 
   const handleAddMoney = () => {
@@ -244,8 +247,8 @@ export function WalletModal({ open, onOpenChange, onBalanceUpdate }: WalletModal
       if (newBalance >= 0) {
         console.log("Payment successful! Setting balance from", balance, "to", newBalance)
         
-        // Force state update immediately
-        setBalance(newBalance)
+        // Update balance via context
+        updateBalance(newBalance)
         
         // Update parent component (header) immediately - this is critical!
         if (onBalanceUpdate) {
@@ -333,7 +336,8 @@ export function WalletModal({ open, onOpenChange, onBalanceUpdate }: WalletModal
       if (response.ok) {
         const data = await response.json()
         const newBalance = parseFloat(data.balance) || data.balance
-        setBalance(newBalance)
+        updateBalance(newBalance)
+        if (onBalanceUpdate) onBalanceUpdate(newBalance)
         if (onBalanceUpdate) {
           onBalanceUpdate(newBalance)
         }

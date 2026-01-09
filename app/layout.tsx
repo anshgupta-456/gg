@@ -32,6 +32,7 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 
 import { AuthProvider } from "@/components/auth-provider"
+import { WalletProvider } from "@/components/wallet-context"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -40,7 +41,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className={inter.className}>
         <AuthProvider>
-          {children}
+          <WalletProvider>
+            {children}
+          </WalletProvider>
         </AuthProvider>
       </body>
     </html>

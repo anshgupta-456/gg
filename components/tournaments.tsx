@@ -17,9 +17,20 @@ import {
   Medal,
   Crown,
   Award,
+  Gamepad2,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useState, useEffect } from "react"
+import { useWallet } from "@/components/wallet-context"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
@@ -134,15 +145,16 @@ interface MyTournament {
 
 export function Tournaments() {
   const { toast } = useToast()
+  const { balance: walletBalance, updateBalance, refreshBalance } = useWallet()
   const [registeredTournaments, setRegisteredTournaments] = useState<number[]>([])
   const [upcomingTournaments, setUpcomingTournaments] = useState<Tournament[]>([])
   const [myTournamentsList, setMyTournamentsList] = useState<MyTournament[]>([])
   const [loading, setLoading] = useState(true)
-  const [walletBalance, setWalletBalance] = useState<number>(0)
+  const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null)
+  const [detailsOpen, setDetailsOpen] = useState(false)
 
   useEffect(() => {
     fetchTournaments()
-    fetchWalletBalance()
     fetchMyTournaments()
   }, [])
 
@@ -207,25 +219,6 @@ export function Tournaments() {
     }
   }
 
-  const fetchWalletBalance = async () => {
-    try {
-      const token = localStorage.getItem("token")
-      if (!token) return
-
-      const response = await fetch(`${API_URL}/api/wallet`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setWalletBalance(data.balance || 0)
-      }
-    } catch (error) {
-      console.error("Error fetching wallet balance:", error)
-    }
-  }
 
   const fetchMyTournaments = async () => {
     try {
@@ -287,18 +280,23 @@ export function Tournaments() {
 
       if (response.ok) {
         const data = await response.json()
+        const newBalance = data.balance || walletBalance
         setRegisteredTournaments((prev) => [...prev, tournament.id])
-        setWalletBalance(data.balance || walletBalance)
+        
+        // Update wallet balance immediately via context
+        updateBalance(newBalance)
+        
         toast({
-          title: "Registered Successfully!",
-          description: `You've been registered for ${tournament.name}. Entry fee of $${tournament.entryFee.toFixed(2)} deducted from wallet.`,
+          title: "Registered Successfully! ✅",
+          description: `You've been registered for ${tournament.name}. Entry fee of $${tournament.entryFee.toFixed(2)} deducted. New balance: $${newBalance.toFixed(2)}`,
         })
+        
         // Refresh tournaments to update participant count
         fetchTournaments()
         // Refresh my tournaments to show newly registered tournament
         fetchMyTournaments()
-        // Refresh wallet balance
-        fetchWalletBalance()
+        // Refresh wallet balance from server to confirm
+        refreshBalance()
       } else {
         const error = await response.json()
         toast({
@@ -438,7 +436,15 @@ export function Tournaments() {
                     >
                       {tournament.status === "Registration Closed" ? "Full" : registeredTournaments.includes(tournament.id) ? "Registered" : `Register ($${tournament.entryFee.toFixed(2)})`}
                     </Button>
-                    <Button size="sm" variant="outline" className="border-gray-600 text-gray-300 flex-1" onClick={() => toast({ title: "Tournament Details", description: `Viewing details for ${tournament.name}.` })}>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="border-gray-600 text-gray-300 flex-1" 
+                      onClick={() => {
+                        setSelectedTournament(tournament)
+                        setDetailsOpen(true)
+                      }}
+                    >
                       Details
                     </Button>
                   </div>
@@ -668,6 +674,161 @@ export function Tournaments() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Tournament Details Dialog */}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="bg-gray-800 border-gray-700 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">{selectedTournament?.name}</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Complete tournament information and requirements
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedTournament && (
+            <div className="space-y-6 mt-4">
+              {/* Tournament Image */}
+              <div className="relative w-full h-48 rounded-lg overflow-hidden">
+                <img
+                  src={selectedTournament.thumbnail || "/placeholder.svg"}
+                  alt={selectedTournament.name}
+                  className="w-full h-full object-cover"
+                />
+                <Badge
+                  className={`absolute top-4 right-4 ${
+                    selectedTournament.status === "Open Registration"
+                      ? "bg-green-600"
+                      : selectedTournament.status === "Registration Closed"
+                        ? "bg-red-600"
+                        : "bg-gray-600"
+                  }`}
+                >
+                  {selectedTournament.status}
+                </Badge>
+              </div>
+
+              {/* Key Information */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center space-x-2 text-gray-400">
+                    <Gamepad2 className="w-4 h-4" />
+                    <span className="text-sm">Game</span>
+                  </div>
+                  <p className="text-white font-medium">{selectedTournament.game}</p>
+                </div>
+                
+                <div className="space-y-1">
+                  <div className="flex items-center space-x-2 text-gray-400">
+                    <Trophy className="w-4 h-4" />
+                    <span className="text-sm">Prize Pool</span>
+                  </div>
+                  <p className="text-white font-medium">{selectedTournament.prizePool}</p>
+                </div>
+                
+                <div className="space-y-1">
+                  <div className="flex items-center space-x-2 text-gray-400">
+                    <DollarSign className="w-4 h-4" />
+                    <span className="text-sm">Entry Fee</span>
+                  </div>
+                  <p className="text-white font-medium">${selectedTournament.entryFee.toFixed(2)}</p>
+                </div>
+                
+                <div className="space-y-1">
+                  <div className="flex items-center space-x-2 text-gray-400">
+                    <Users className="w-4 h-4" />
+                    <span className="text-sm">Participants</span>
+                  </div>
+                  <p className="text-white font-medium">{selectedTournament.participants}</p>
+                </div>
+                
+                <div className="space-y-1">
+                  <div className="flex items-center space-x-2 text-gray-400">
+                    <Calendar className="w-4 h-4" />
+                    <span className="text-sm">Start Date</span>
+                  </div>
+                  <p className="text-white font-medium">{selectedTournament.startDate}</p>
+                </div>
+                
+                {selectedTournament.endDate && (
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2 text-gray-400">
+                      <Calendar className="w-4 h-4" />
+                      <span className="text-sm">End Date</span>
+                    </div>
+                    <p className="text-white font-medium">{selectedTournament.endDate}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Tournament Details */}
+              <div className="space-y-4 pt-4 border-t border-gray-700">
+                <div>
+                  <h4 className="text-lg font-semibold mb-2">Tournament Format</h4>
+                  <p className="text-gray-300">{selectedTournament.format}</p>
+                </div>
+                
+                <div>
+                  <h4 className="text-lg font-semibold mb-2">Organizer</h4>
+                  <p className="text-purple-400">{selectedTournament.organizer}</p>
+                </div>
+
+                <div>
+                  <h4 className="text-lg font-semibold mb-2">Rules & Requirements</h4>
+                  <ul className="list-disc list-inside space-y-1 text-gray-300">
+                    <li>Must be 18 years or older to participate</li>
+                    <li>Entry fee is non-refundable after registration closes</li>
+                    <li>All participants must follow the code of conduct</li>
+                    <li>Matches will be scheduled and communicated via email</li>
+                    <li>Prizes will be distributed within 30 days of tournament completion</li>
+                  </ul>
+                </div>
+
+                {selectedTournament.entryFee > 0 && (
+                  <div className="bg-yellow-900/20 border border-yellow-600/30 rounded-lg p-4">
+                    <div className="flex items-center space-x-2 text-yellow-400 mb-2">
+                      <DollarSign className="w-5 h-5" />
+                      <span className="font-semibold">Entry Fee Required</span>
+                    </div>
+                    <p className="text-gray-300 text-sm">
+                      ${selectedTournament.entryFee.toFixed(2)} will be deducted from your wallet upon registration.
+                      {walletBalance < selectedTournament.entryFee && (
+                        <span className="block mt-1 text-red-400">
+                          Your current balance (${walletBalance.toFixed(2)}) is insufficient. Please add money to your wallet.
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex space-x-3 pt-4 border-t border-gray-700">
+                <Button
+                  className="bg-purple-600 hover:bg-purple-700 flex-1"
+                  disabled={registeredTournaments.includes(selectedTournament.id) || selectedTournament.status !== 'Open Registration'}
+                  onClick={() => {
+                    setDetailsOpen(false)
+                    handleRegister(selectedTournament)
+                  }}
+                >
+                  {selectedTournament.status === "Registration Closed" 
+                    ? "Registration Closed" 
+                    : registeredTournaments.includes(selectedTournament.id) 
+                      ? "Already Registered" 
+                      : `Register ($${selectedTournament.entryFee.toFixed(2)})`}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-gray-600 text-gray-300 flex-1"
+                  onClick={() => setDetailsOpen(false)}
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

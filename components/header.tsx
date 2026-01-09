@@ -8,71 +8,29 @@ import { useState, useEffect } from "react"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { WalletModal } from "@/components/wallet-modal"
 import { useAuth } from "@/components/auth-provider"
+import { useWallet } from "@/components/wallet-context"
 import { useRouter } from "next/navigation"
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
 export function Header() {
   const [showSearch, setShowSearch] = useState(false)
   const [walletOpen, setWalletOpen] = useState(false)
-  const [walletBalance, setWalletBalance] = useState<number>(0)
   const isMobile = useIsMobile()
   const { user, logout } = useAuth()
   const router = useRouter()
+  const { balance: walletBalance, updateBalance, refreshBalance } = useWallet()
 
-  const fetchWalletBalance = async () => {
-    try {
-      const token = localStorage.getItem("token")
-      if (!token) return
-
-      const response = await fetch(`${API_URL}/api/wallet`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setWalletBalance(data.balance)
-      }
-    } catch (error) {
-      console.error("Error fetching wallet balance:", error)
-    }
+  // Handle balance update from wallet modal
+  const handleBalanceUpdate = (newBalance: number) => {
+    updateBalance(newBalance)
   }
 
-  useEffect(() => {
-    // Wait a bit for auto-login to complete
-    const timer = setTimeout(() => {
-      fetchWalletBalance()
-    }, 1000)
-    
-    // Refresh balance every 30 seconds
-    const interval = setInterval(fetchWalletBalance, 30000)
-    return () => {
-      clearTimeout(timer)
-      clearInterval(interval)
-    }
-  }, [user])
-
-  // Refresh balance when wallet modal closes
+  // Handle wallet modal close
   const handleWalletClose = (open: boolean) => {
     setWalletOpen(open)
     if (!open) {
       // Refresh balance when modal closes
-      setTimeout(() => {
-        fetchWalletBalance()
-      }, 500)
+      refreshBalance()
     }
-  }
-
-  // Handle balance update from wallet modal
-  const handleBalanceUpdate = (newBalance: number) => {
-    console.log("Header: Updating balance to", newBalance)
-    setWalletBalance(newBalance)
-    // Also fetch from server to ensure accuracy
-    setTimeout(() => {
-      fetchWalletBalance()
-    }, 500)
   }
 
   return (
@@ -133,7 +91,9 @@ export function Header() {
             onClick={() => setWalletOpen(true)}
           >
             <Wallet className="w-5 h-5" />
-            <span className="hidden sm:inline font-medium">${walletBalance.toFixed(2)}</span>
+            <span className="hidden sm:inline font-medium">
+              ${(typeof walletBalance === 'number' && !isNaN(walletBalance) ? walletBalance : 0).toFixed(2)}
+            </span>
           </Button>
 
           <Button asChild variant="ghost" size="icon" className="text-gray-400 hover:text-white">
