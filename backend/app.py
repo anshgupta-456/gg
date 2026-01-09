@@ -694,11 +694,17 @@ def add_money(current_user):
         # Refresh wallet from database to get updated balance
         db.session.refresh(wallet)
         
+        # Ensure balance is properly returned as float
+        final_balance = float(wallet.balance)
+        print(f"Wallet add: User {current_user.id}, Added ${amount}, New balance: ${final_balance}")
+        
         return jsonify({
             'message': 'Money added successfully',
-            'balance': float(wallet.balance),
+            'balance': final_balance,
             'transaction_id': transaction.id,
-            'amount_added': float(amount)
+            'amount_added': float(amount),
+            'previous_balance': float(wallet.balance - amount),
+            'new_balance': final_balance
         }), 200
     except ValueError:
         return jsonify({'message': 'Invalid amount format'}), 400

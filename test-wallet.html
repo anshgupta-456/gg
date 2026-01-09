@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Wallet API</title>
+</head>
+<body>
+    <h1>Wallet API Test</h1>
+    <button onclick="testWallet()">Test Wallet Add</button>
+    <div id="result"></div>
+    
+    <script>
+        async function testWallet() {
+            const token = localStorage.getItem('token') || prompt('Enter JWT token:');
+            if (!token) {
+                alert('Token required!');
+                return;
+            }
+            
+            const API_URL = 'http://localhost:5000';
+            
+            try {
+                // Get current balance
+                const balanceRes = await fetch(`${API_URL}/api/wallet`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const balanceData = await balanceRes.json();
+                console.log('Current balance:', balanceData);
+                
+                // Add money
+                const addRes = await fetch(`${API_URL}/api/wallet/add`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ amount: 100, payment_method: 'card' })
+                });
+                const addData = await addRes.json();
+                console.log('Add money response:', addData);
+                
+                // Get updated balance
+                const newBalanceRes = await fetch(`${API_URL}/api/wallet`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const newBalanceData = await newBalanceRes.json();
+                console.log('New balance:', newBalanceData);
+                
+                document.getElementById('result').innerHTML = `
+                    <h3>Results:</h3>
+                    <p>Old Balance: $${balanceData.balance}</p>
+                    <p>Add Response: ${JSON.stringify(addData)}</p>
+                    <p>New Balance: $${newBalanceData.balance}</p>
+                `;
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('result').innerHTML = `<p style="color:red">Error: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

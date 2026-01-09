@@ -47,8 +47,21 @@ export function Header() {
   const handleWalletClose = (open: boolean) => {
     setWalletOpen(open)
     if (!open) {
-      fetchWalletBalance()
+      // Refresh balance when modal closes
+      setTimeout(() => {
+        fetchWalletBalance()
+      }, 500)
     }
+  }
+
+  // Handle balance update from wallet modal
+  const handleBalanceUpdate = (newBalance: number) => {
+    console.log("Header: Updating balance to", newBalance)
+    setWalletBalance(newBalance)
+    // Also fetch from server to ensure accuracy
+    setTimeout(() => {
+      fetchWalletBalance()
+    }, 500)
   }
 
   return (
@@ -132,7 +145,7 @@ export function Header() {
       <WalletModal 
         open={walletOpen} 
         onOpenChange={handleWalletClose}
-        onBalanceUpdate={setWalletBalance}
+        onBalanceUpdate={handleBalanceUpdate}
       />
     </header>
   )

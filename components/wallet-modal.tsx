@@ -47,8 +47,13 @@ export function WalletModal({ open, onOpenChange, onBalanceUpdate }: WalletModal
 
       if (response.ok) {
         const data = await response.json()
-        const balanceValue = parseFloat(data.balance) || data.balance || 0
+        const balanceValue = typeof data.balance === 'number' ? data.balance : (parseFloat(data.balance) || 0)
+        console.log("Fetched balance from server:", balanceValue)
         setBalance(balanceValue)
+        // Also update parent component if callback exists
+        if (onBalanceUpdate) {
+          onBalanceUpdate(balanceValue)
+        }
       } else {
         console.error("Failed to fetch wallet balance:", response.status)
         if (response.status === 401) {
@@ -70,6 +75,7 @@ export function WalletModal({ open, onOpenChange, onBalanceUpdate }: WalletModal
       fetchBalance()
     }
   }, [open])
+
 
   const handleAddMoney = () => {
     const amount = parseFloat(addAmount)
@@ -129,32 +135,71 @@ export function WalletModal({ open, onOpenChange, onBalanceUpdate }: WalletModal
 
       console.log("Wallet add response status:", response.status)
 
-      const responseData = await response.json()
-      console.log("Wallet add response data:", responseData)
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: "Unknown error occurred" }))
+        console.error("Wallet add error:", errorData)
+        toast({
+          title: "Payment Failed",
+          description: errorData.message || "Failed to process payment. Please try again.",
+          variant: "destructive"
+        })
+        setLoading(false)
+        setProcessingPayment(false)
+        return
+      }
 
-      if (response.ok && responseData.balance !== undefined) {
-        const newBalance = parseFloat(responseData.balance) || 0
+      const responseData = await response.json()
+      console.log("Full response data:", responseData)
+      
+      // Try multiple possible response formats
+      let newBalance = 0
+      if (responseData.balance !== undefined && responseData.balance !== null) {
+        newBalance = typeof responseData.balance === 'number' ? responseData.balance : parseFloat(responseData.balance)
+      } else if (responseData.new_balance !== undefined) {
+        newBalance = typeof responseData.new_balance === 'number' ? responseData.new_balance : parseFloat(responseData.new_balance)
+      } else if (responseData.data?.balance !== undefined) {
+        newBalance = typeof responseData.data.balance === 'number' ? responseData.data.balance : parseFloat(responseData.data.balance)
+      }
+      
+      // Validate balance
+      if (isNaN(newBalance)) {
+        newBalance = 0
+      }
+      
+      console.log("Parsed new balance:", newBalance, "from response:", responseData)
+      
+      if (newBalance >= 0) {
+        console.log("Payment successful! Setting balance from", balance, "to", newBalance)
+        
+        // Force state update immediately
         setBalance(newBalance)
+        
+        // Update parent component (header) immediately - this is critical!
         if (onBalanceUpdate) {
+          console.log("Calling onBalanceUpdate callback with balance:", newBalance)
           onBalanceUpdate(newBalance)
         }
+        
+        // Clear form fields
         setAddAmount("")
         setPendingAmount(0)
         setPaymentMethod(null)
         setShowPaymentMethod(false)
+        
         toast({
-          title: "Payment Successful!",
-          description: `$${amountToAdd.toFixed(2)} has been added to your wallet via ${method === "card" ? "Credit/Debit Card" : "UPI"}`,
+          title: "Payment Successful! ✅",
+          description: `$${amountToAdd.toFixed(2)} has been added to your wallet via ${method === "card" ? "Credit/Debit Card" : "UPI"}. Your new balance is $${newBalance.toFixed(2)}`,
         })
-        // Refresh balance after a short delay
-        setTimeout(() => {
-          fetchBalance()
+        
+        // Verify by refreshing from server after a brief delay
+        setTimeout(async () => {
+          await fetchBalance()
         }, 500)
       } else {
-        console.error("Wallet add error:", responseData)
+        console.error("Invalid balance in response:", responseData)
         toast({
           title: "Payment Failed",
-          description: responseData.message || "Failed to process payment. Please try again.",
+          description: "Received invalid balance from server. Please refresh and try again.",
           variant: "destructive"
         })
       }
@@ -266,8 +311,13 @@ export function WalletModal({ open, onOpenChange, onBalanceUpdate }: WalletModal
             <p className="text-gray-400 text-sm mb-2">Current Balance</p>
             <div className="flex items-center justify-center space-x-2">
               <DollarSign className="w-8 h-8 text-green-400" />
-              <span className="text-4xl font-bold text-white">{balance.toFixed(2)}</span>
+              <span className="text-4xl font-bold text-white" key={`balance-${balance}-${Date.now()}`}>
+                ${balance.toFixed(2)}
+              </span>
             </div>
+            {(loading || processingPayment) && (
+              <p className="text-xs text-gray-500 mt-2 animate-pulse">Updating balance...</p>
+            )}
           </div>
 
           {/* Tabs for Add/Withdraw */}
@@ -304,7 +354,7 @@ export function WalletModal({ open, onOpenChange, onBalanceUpdate }: WalletModal
                 {loading ? "Processing..." : "Add Money"}
               </Button>
               <p className="text-xs text-gray-500 text-center">
-                You will be asked to select a payment method
+                Click "Add Money" to select a payment method (Card/UPI)
               </p>
             </TabsContent>
 
