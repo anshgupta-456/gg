@@ -1,0 +1,150 @@
+export interface UserProfile {
+  id: number
+  username: string
+  avatar: string
+  isOnline: boolean
+  lastSeen: string
+  game?: string
+  status?: string
+  unreadCount?: number
+  rank?: string
+  skillLevel?: string
+  winRate?: number
+  hoursPlayed?: number
+  preferredRole?: string
+  location?: string
+  matchCompatibility?: number
+}
+
+export const users: UserProfile[] = [
+  {
+    id: 1,
+    username: "ProShooter99",
+    avatar: "/placeholder-user.jpg",
+    isOnline: true,
+    lastSeen: "Online",
+    game: "Call of Duty",
+    status: "In Game",
+    unreadCount: 2,
+    rank: "Diamond",
+    skillLevel: "Diamond",
+    winRate: 78,
+    hoursPlayed: 1240,
+    preferredRole: "Assault",
+    location: "Los Angeles, CA",
+    matchCompatibility: 95,
+  },
+  {
+    id: 2,
+    username: "StrategyMaster",
+    avatar: "/placeholder-user.jpg",
+    isOnline: true,
+    lastSeen: "Online",
+    game: "League of Legends",
+    unreadCount: 0,
+    rank: "Platinum",
+    skillLevel: "Platinum",
+    winRate: 82,
+    hoursPlayed: 890,
+    preferredRole: "Support",
+    location: "New York, NY",
+    matchCompatibility: 88,
+  },
+  {
+    id: 3,
+    username: "HeadshotKing",
+    avatar: "/placeholder-user.jpg",
+    isOnline: false,
+    lastSeen: "2 hours ago",
+    game: "Valorant",
+    unreadCount: 1,
+    rank: "Diamond",
+    skillLevel: "Diamond",
+    winRate: 75,
+    hoursPlayed: 1560,
+    preferredRole: "Duelist",
+    location: "Chicago, IL",
+    matchCompatibility: 92,
+  },
+  {
+    id: 4,
+    username: "TeamPlayer2024",
+    avatar: "/placeholder-user.jpg",
+    isOnline: true,
+    lastSeen: "Online",
+    game: "Overwatch",
+    unreadCount: 0,
+    rank: "Master",
+    skillLevel: "Master",
+    winRate: 85,
+    hoursPlayed: 2100,
+    preferredRole: "Tank",
+    location: "Seattle, WA",
+    matchCompatibility: 90,
+  },
+  {
+    id: 5,
+    username: "ComboQueen",
+    avatar: "/placeholder-user.jpg",
+    isOnline: false,
+    lastSeen: "5 minutes ago",
+    game: "Street Fighter",
+    unreadCount: 0,
+    rank: "Gold",
+    skillLevel: "Gold",
+    winRate: 80,
+    hoursPlayed: 700,
+    preferredRole: "Fighter",
+    location: "Miami, FL",
+    matchCompatibility: 87,
+  },
+  {
+    id: 6,
+    username: "RPGWizard",
+    avatar: "/placeholder-user.jpg",
+    isOnline: true,
+    lastSeen: "Online",
+    game: "Final Fantasy",
+    unreadCount: 0,
+    rank: "Platinum",
+    skillLevel: "Platinum",
+    winRate: 83,
+    hoursPlayed: 1800,
+    preferredRole: "Mage",
+    location: "Austin, TX",
+    matchCompatibility: 89,
+  },
+  {
+    id: 7,
+    username: "RetroChamp",
+    avatar: "/placeholder-user.jpg",
+    isOnline: false,
+    lastSeen: "1 day ago",
+    game: "Pac-Man",
+    unreadCount: 0,
+    rank: "Master",
+    skillLevel: "Master",
+    winRate: 95,
+    hoursPlayed: 2200,
+    preferredRole: "Solo",
+    location: "Denver, CO",
+    matchCompatibility: 91,
+  },
+  {
+    id: 8,
+    username: "SpeedRunnerX",
+    avatar: "/placeholder-user.jpg",
+    isOnline: true,
+    lastSeen: "Online",
+    game: "Celeste",
+    unreadCount: 0,
+    rank: "Diamond",
+    skillLevel: "Diamond",
+    winRate: 88,
+    hoursPlayed: 950,
+    preferredRole: "Runner",
+    location: "San Francisco, CA",
+    matchCompatibility: 93,
+  },
+  // Add more users as needed
+] 
